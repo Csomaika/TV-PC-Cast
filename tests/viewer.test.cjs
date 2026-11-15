@@ -238,6 +238,35 @@ test("a signaling error leaves MJPEG running with the server's explanation", asy
   assert.equal(viewer.get("rtc").getAttribute("aria-pressed"), "false");
 });
 
+test("remote play can recover from autoplay denial with no PC audio endpoint", async () => {
+  const viewer = openViewer({ webRtc: true });
+  const video = viewer.get("rtc-video");
+  const audioButton = viewer.get("rtc-audio");
+  video.play = () => Promise.reject(new Error("Needs user activation"));
+  viewer.pair();
+  viewer.get("rtc").onclick();
+  await flushPromises();
+  const peer = viewer.peers[0];
+  peer.completeIce();
+  viewer.requests[1].respond(200, { type: "answer", sdp: "server sdp", audio_available: false });
+  peer.ontrack({ track: { kind: "video" } });
+  peer.ontrack({ track: { kind: "audio" } });
+  await flushPromises();
+  assert.equal(audioButton.hidden, false);
+  assert.equal(audioButton.textContent, "Lejátszás");
+  assert.match(viewer.get("rtc-notice").textContent, /távirányítójával/);
+  video.play = () => {
+    video.paused = false;
+    video.videoWidth = 1280;
+    return Promise.resolve();
+  };
+  audioButton.onclick();
+  await flushPromises();
+  assert.equal(audioButton.hidden, true);
+  assert.equal(video.muted, true);
+  assert.match(viewer.get("mode").textContent, /A PC hangja nem elérhető/);
+});
+
 test("negotiation is bounded and disconnect aborts a queued offer", async () => {
   const viewer = openViewer({ webRtc: true });
   viewer.pair();

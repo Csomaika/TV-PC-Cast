@@ -81,6 +81,7 @@ jobs:
           path: |
             dist/TVPCCast-Setup.exe
             dist/TVPCCast-Portable.zip
+            dist/TVPCCast-Codec-Sources.zip
             dist/SHA256SUMS.txt
           if-no-files-found: error
 
@@ -103,6 +104,7 @@ jobs:
           files: |
             release/TVPCCast-Setup.exe
             release/TVPCCast-Portable.zip
+            release/TVPCCast-Codec-Sources.zip
             release/SHA256SUMS.txt
           fail_on_unmatched_files: true
           generate_release_notes: true

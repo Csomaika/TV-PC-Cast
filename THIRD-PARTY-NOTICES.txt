@@ -1,0 +1,28 @@
+TV-PC Cast for Windows includes third-party projects with their own licensing terms.
+The application source is available under the MIT license in LICENSE.txt.
+
+The WebRTC feature uses aiortc, PyAV 19.0.2, FFmpeg 9.0.2 and libraries
+including x264, x265, Opus, libvpx, dav1d, SVT-AV1, libwebp, libvmaf,
+LAME and Intel VPL. Audio capture uses PyAudioWPatch and PortAudio.
+The FFmpeg vendor build comes from PyAV-Org/pyav-ffmpeg 9.0.2-1.
+
+PyAV source is BSD-3-Clause. The Windows wheel links FFmpeg libraries
+built with --enable-version3 and includes GPL x264 and x265 code. The
+combined codec distribution is offered under the GNU GPL version 3.
+The individual components retain their existing notices, licenses and
+any applicable exceptions. Their included texts are in THIRD-PARTY-LICENSES.
+
+Download TVPCCast-Codec-Sources.zip from the same GitHub release as the
+installer or portable archive. It contains application source, FFmpeg and
+PyAV source, sources for the vendor codec/runtime libraries and upstream
+build recipes and patches. See CODEC-SOURCE-README.txt inside that archive.
+
+Windows releases
+https://github.com/Csomaika/TV-PC-Cast/releases
+
+FFmpeg
+https://ffmpeg.org/
+
+PyAV source and dependency build recipes
+https://github.com/PyAV-Org/PyAV/tree/v19.0.2
+https://github.com/PyAV-Org/pyav-ffmpeg/tree/9.0.2-1

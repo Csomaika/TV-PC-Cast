@@ -25,6 +25,7 @@ def _lan_offer(sdp, client_ip):
     """Restrict UDP candidate destinations to the LAN connection that sent the offer."""
     lines = []
     media = []
+    candidate_count = 0
     address = ipaddress.ip_address(client_ip) if client_ip else None
     for raw_line in sdp.splitlines():
         line = raw_line.rstrip()
@@ -34,7 +35,8 @@ def _lan_offer(sdp, client_ip):
             raise ValueError('A TV-lejátszó csak fogadó ajánlatot küldhet.')
         elif line.startswith('a=candidate:') and address is not None:
             fields = line.split()
-            if len(fields) < 8 or fields[2].lower() != 'udp' or fields[6:8] != ['typ', 'host']:
+            if (candidate_count >= 24 or len(fields) < 8 or fields[1] != '1'
+                    or fields[2].lower() != 'udp' or fields[6:8] != ['typ', 'host']):
                 continue
             try:
                 candidate_address = ipaddress.ip_address(fields[4])
@@ -46,6 +48,7 @@ def _lan_offer(sdp, client_ip):
                 continue
             fields[4] = str(address)
             line = ' '.join(fields[:8])
+            candidate_count += 1
         lines.append(line)
     if media.count('video') != 1 or set(media) - {'video', 'audio'} or media.count('audio') > 1:
         raise ValueError('A WebRTC-ajánlatnak egy kép- és legfeljebb egy hangsávot kell tartalmaznia.')

@@ -21,7 +21,7 @@ A telepítés nélküli változathoz bontsd ki a teljes **TVPCCast-Portable.zip*
 
 A WebRTC mód kísérleti, a 65E8S Odin böngészőjében a kép és hang működését még ellenőrizni kell. Ha a böngésző nem tud WebRTC-n csatlakozni, az oldal visszatér a csak kép módhoz és megjeleníti az okot. A csak kép mód először MJPEG-et próbál. Ha az első kép nem jelenik meg, automatikusan egyesével frissülő JPEG-képekre vált. A **JPEG mód** gombbal kézzel is válthatsz.
 
-A WebRTC hang- és képforgalma titkosított. A JPEG-képek, a párosítás és a WebRTC kapcsolatindítás adatai titkosítatlan helyi HTTP-n mennek. Használd megbízható otthoni hálózaton. A minden felhasználóra telepített változat a programhoz kötött TCP/8765-ös bejövő szabályt hoz létre a Windows privát hálózati profilján a helyi alhálózathoz. Az aktuális felhasználós és a telepítés nélküli változatnál a Windows tűzfala külön engedélyt kérhet a privát hálózatra.
+A WebRTC hang- és képforgalma titkosított. A JPEG-képek, a párosítás és a WebRTC kapcsolatindítás adatai titkosítatlan helyi HTTP-n mennek. Használd megbízható otthoni hálózaton. A minden felhasználóra telepített változat két bejövő tűzfalszabályt hoz létre a TV-PC Cast programhoz. A TCP/8765 a webes felületet és a párosítást, a külön UDP-szabály a WebRTC kép- és hangforgalmát szolgálja. Mindkét szabály a Windows privát hálózati profiljára és a helyi alhálózatra korlátozódik. Az aktuális felhasználós és a telepítés nélküli változatnál a Windows tűzfala külön engedélyt kérhet a privát hálózatra.
 
 ## Hisense 65E8S csatlakoztatása Miracasttal
 
@@ -52,6 +52,7 @@ A **Hálózati eszközök** lapon az **Eszközök keresése** a kiválasztott h�
 - **Nem indul az EXE.** A vizsgált gépen a Panda Dome karanténba tette a 0.1.0-s, egyfájlos és kódaláírás nélküli `TVPCCast.exe`-t. Az új csomag külön mappában tartja a függőségeket, így induláskor nincs ideiglenes önkibontás. A csomag továbbra is kódaláírás nélküli, ezért a vírusirtók döntése a helyi védelemtől függ. Ellenőrizd a letöltés SHA-256 értékét a kiadásban szereplő ellenőrzőösszeghez képest (`Get-FileHash .\TVPCCast-Setup.exe -Algorithm SHA256`). Telepítés nélküli futtatásnál bontsd ki az egész ZIP-et. Újabb blokkolásnál keresd meg a futtatás időpontjához tartozó eseményt a vírusirtó karanténnaplójában vagy a **Windows biztonság → Védelmi előzmények** felületen. Ha az alkalmazás eljut a Python indításáig, az alkalmazáshibák naplója a `%LOCALAPPDATA%\TV-PC Cast\startup.log` útvonalon található. [Microsoft útmutató a védelmi előzményekhez](https://support.microsoft.com/en-us/windows/security/windows-security/protection-history-in-the-windows-security-app) · [Smart App Control és digitális aláírás](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions)
 - **A Windows nem találja a TV-t.** Ellenőrizd a TV **Képernyőmegosztás** bemenetét, a Wi-Fi-t, a PC Miracast-képességét és a hálózati, illetve grafikus illesztőprogramokat. A **Win + K** panel jelzi, ha a gépen a vezeték nélküli kivetítés nem érhető el. [Microsoft hibaelhárítás](https://support.microsoft.com/en-us/windows/hardware/display-graphics/fix-connections-to-wireless-displays-or-docks-in-windows)
 - **A böngésző nem éri el a címet.** A PC-n a tényleges otthoni hálózathoz tartozó címet válaszd. Ellenőrizd a Windows privát hálózati profilját, a TCP/8765 elérhetőségét és a router vendéghálózati vagy klienselkülönítési beállítását.
+- **A JPEG-kép működik, de a WebRTC nem kapcsolódik.** A TV böngészőjének WebRTC-támogatása mellett ellenőrizd, hogy a privát helyi hálózaton a tűzfal engedi-e a TV-PC Cast UDP-forgalmát.
 - **WebRTC-kép van, hang nincs.** A TV-n válaszd a **Hang bekapcsolása** gombot, és ellenőrizd, hogy a PC lejátszója a Windows alapértelmezett hangkimenetét használja. Ha a kimenetet megváltoztatod, indítsd újra a közvetítést.
 - **A böngészős kép akadozik.** Kezdetnek válaszd a 720p / 10 FPS beállítást egy monitorral. Ellenőrizd a kiválasztott kijelzőt és a PC munkamenetét, ha fekete kép jelenik meg. Egyes védett tartalmak fekete képként jelenhetnek meg.
 
@@ -76,8 +77,8 @@ Helyi csomagolás Inno Setup 6-tal, külön tesztfiókban vagy olyan Windows-kö
 .\scripts\test-windows-install.ps1
 ```
 
-A [Windows GitHub Actions folyamat](../../actions/workflows/windows-build.yml) futásából letölthető a tesztelt csomag. A `v*` verziótagok futása a telepítőt, a telepítés nélküli ZIP-et és az ellenőrzőösszeg-fájlt a [GitHub Releases](../../releases) oldalra tölti fel.
+A [Windows GitHub Actions folyamat](../../actions/workflows/windows-build.yml) futásából letölthető a tesztelt csomag. A `v*` verziótagok futása a telepítőt, a hordozható ZIP-et, a kodekek forráscsomagját és az ellenőrzőösszeg-fájlt a [GitHub Releases](../../releases) oldalra tölti fel.
 
 ## Licenc
 
-[MIT](LICENSE)
+A TV-PC Cast forráskódja [MIT licenc](LICENSE) alatt érhető el. A Windows-csomag kodekjeinek licenceit és forrásait a [külső összetevők jegyzéke](THIRD-PARTY-NOTICES.txt) és a kiadás `TVPCCast-Codec-Sources.zip` fájlja tartalmazza.

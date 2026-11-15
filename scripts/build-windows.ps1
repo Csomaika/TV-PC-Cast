@@ -24,11 +24,18 @@ try {
         --add-data 'web:web' --collect-submodules mss tvpc_cast.py
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed ($LASTEXITCODE)" }
 
+    Copy-Item -LiteralPath 'LICENSE' -Destination 'dist/TVPCCast/LICENSE.txt'
+    & (Join-Path $PSScriptRoot 'collect-codec-sources.ps1') `
+        -OutputDirectory (Join-Path $repository 'dist') `
+        -BundleDirectory (Join-Path $repository 'dist/TVPCCast') `
+        -Python $pythonCommand
+
     & $compilerPath "/DAppVersion=$applicationVersion" 'installer.iss'
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed ($LASTEXITCODE)" }
 
     Compress-Archive -Path 'dist/TVPCCast' -DestinationPath 'dist/TVPCCast-Portable.zip' -Force
-    Get-FileHash -Algorithm SHA256 -LiteralPath 'dist/TVPCCast-Setup.exe', 'dist/TVPCCast-Portable.zip' |
+    $packages = 'dist/TVPCCast-Setup.exe', 'dist/TVPCCast-Portable.zip', 'dist/TVPCCast-Codec-Sources.zip'
+    Get-FileHash -Algorithm SHA256 -LiteralPath $packages |
         ForEach-Object { '{0}  {1}' -f $_.Hash.ToLowerInvariant(), (Split-Path $_.Path -Leaf) } |
         Set-Content -Encoding ascii -LiteralPath 'dist/SHA256SUMS.txt'
 }

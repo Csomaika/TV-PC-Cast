@@ -254,7 +254,7 @@ input {
     if (rtc !== session) return;
     closeRtc();
     if (format === "rtc") startMjpeg();
-    rtcNotice.textContent = message + " A csak kép mód folytatódik.";
+    rtcNotice.textContent = message + " A közvetítés hang nélkül folytatódik.";
     showControls(true);
   }
 
@@ -279,14 +279,16 @@ input {
   }
 
   function playRtc(session, userAction) {
+    session.playAttempt = (session.playAttempt || 0) + 1;
+    var attempt = session.playAttempt;
     var result = video.play();
     if (result && result.then) result.then(function () {
-      updateRtcPlayback(session);
+      if (session.playAttempt === attempt) updateRtcPlayback(session);
     }, function () {
-      if (rtc !== session) return;
+      if (rtc !== session || session.playAttempt !== attempt) return;
       video.muted = true;
       audioButton.hidden = false;
-      audioButton.textContent = "Lejátszás és hang bekapcsolása";
+      audioButton.textContent = session.audioAvailable ? "Lejátszás és hang bekapcsolása" : "Lejátszás";
       rtcNotice.textContent = userAction ? "A böngésző nem indította el a lejátszást." :
         "A lejátszáshoz válaszd a gombot a TV távirányítójával.";
     });
@@ -322,12 +324,13 @@ input {
   function startRtc() {
     var Peer = window.RTCPeerConnection;
     if (!Peer || !Peer.prototype.addTransceiver || !window.MediaStream || !("srcObject" in video)) {
-      rtcNotice.textContent = "A TV böngészője nem támogatja ezt a WebRTC-lejátszást. A csak kép mód folytatódik.";
+      rtcNotice.textContent = "A TV böngészője nem támogatja ezt a WebRTC-lejátszást. A közvetítés hang nélkül folytatódik.";
       return;
     }
     try {
+      var stream = new window.MediaStream();
       var peer = new Peer({ iceServers: [], bundlePolicy: "max-bundle" });
-      var session = { peer: peer, stream: new window.MediaStream(), audioAvailable: true };
+      var session = { peer: peer, stream: stream, audioAvailable: true };
       rtc = session;
       rtcButton.setAttribute("aria-pressed", "true");
       rtcButton.textContent = "Vissza a csak kép módhoz";

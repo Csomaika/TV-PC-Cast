@@ -340,6 +340,7 @@ def smoke_test(app):
     import pyaudiowpatch
     from av import Codec
     from PIL import Image
+    from rtc_stream import RtcPublisher
 
     Codec("libx264", "w")
     Codec("libopus", "w")
@@ -355,6 +356,8 @@ def smoke_test(app):
     if app.service is None:
         raise RuntimeError(app.status.cget("text"))
     capture = app.service.capture
+    publisher = RtcPublisher(capture)
+    publisher.stop()
     if capture.frame_after(-1, timeout=5)[1] is None:
         raise RuntimeError(capture.error or "MSS did not produce a desktop image.")
     conn = HTTPConnection(app.service.host, app.service.port, timeout=5)
