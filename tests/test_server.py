@@ -80,7 +80,7 @@ def test_stream_is_multipart(service):
     response = conn.getresponse()
     assert response.status == 200
     assert response.getheader("Content-Type").startswith("multipart/x-mixed-replace")
-    assert b"--tvframe" in response.read(65)
+    assert b"--tvframe" in response.read(9)
     conn.close()
 
 
