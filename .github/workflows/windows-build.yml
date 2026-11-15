@@ -1,4 +1,4 @@
-name: Build Windows EXE and Installer
+name: Build and test Windows packages
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-windows:
@@ -29,40 +29,82 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pytest pyinstaller
 
-      - name: Run HTTP and PIN tests
+      - name: Run Python tests
         run: python -m pytest -q
 
-      - name: Compile portable Windows EXE
-        run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name TVPCCast --add-data "web;web" --collect-submodules mss tvpc_cast.py
+      - name: Run browser viewer tests
+        run: node --test tests/viewer.test.cjs
 
-      - name: Compile Windows Setup with Inno Setup
+      - name: Install the Inno Setup compiler
         shell: pwsh
         run: |
-          $compiler = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $compiler)) {
-            choco install innosetup --no-progress -y
+          $destination = Join-Path $env:RUNNER_TEMP 'Inno Setup 6'
+          $setup = Join-Path $env:RUNNER_TEMP 'innosetup-6.7.4.exe'
+          $url = 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_4/innosetup-6.7.4.exe'
+          $expectedSha256 = 'A549929319F9120716677C685535CA4671E4B937B5FDC87E2585F32D8EB30E8C'
+          Invoke-WebRequest -Uri $url -OutFile $setup
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $setup).Hash -ne $expectedSha256) {
+            throw 'Inno Setup download failed SHA-256 verification'
           }
-          if (-not (Test-Path $compiler)) {
-            throw "Inno Setup 6 compiler not found"
+          $arguments = @('/CURRENTUSER', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', ('/DIR="' + $destination + '"'))
+          $process = Start-Process -FilePath $setup -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $destination 'ISCC.exe'))) {
+            throw "Inno Setup compiler installation failed ($($process.ExitCode))"
           }
-          & $compiler "installer.iss"
-          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
 
-      - name: Upload Windows binaries
+      - name: Build Windows setup and portable ZIP
+        shell: pwsh
+        run: |
+          $build = @{ InnoCompiler = (Join-Path $env:RUNNER_TEMP 'Inno Setup 6/ISCC.exe') }
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $build.Version = $env:GITHUB_REF_NAME.Substring(1)
+          }
+          ./scripts/build-windows.ps1 @build
+
+      - name: Launch the portable app, install, launch and uninstall
+        run: ./scripts/test-windows-install.ps1
+
+      - name: Upload Windows test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TVPCCast-Windows-Test-Reports
+          path: |
+            dist/windows-smoke/**/*.json
+            dist/windows-smoke/**/*.log
+          if-no-files-found: ignore
+
+      - name: Upload verified Windows packages
         uses: actions/upload-artifact@v4
         with:
           name: TVPCCast-Windows
           path: |
-            dist/TVPCCast.exe
             dist/TVPCCast-Setup.exe
+            dist/TVPCCast-Portable.zip
+            dist/TVPCCast-Codec-Sources.zip
+            dist/SHA256SUMS.txt
           if-no-files-found: error
 
-      - name: Publish GitHub release for tags
-        if: startsWith(github.ref, 'refs/tags/v')
+  publish-release:
+    needs: build-windows
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified Windows packages
+        uses: actions/download-artifact@v4
+        with:
+          name: TVPCCast-Windows
+          path: release
+
+      - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/TVPCCast.exe
-            dist/TVPCCast-Setup.exe
+            release/TVPCCast-Setup.exe
+            release/TVPCCast-Portable.zip
+            release/TVPCCast-Codec-Sources.zip
+            release/SHA256SUMS.txt
+          fail_on_unmatched_files: true
           generate_release_notes: true
