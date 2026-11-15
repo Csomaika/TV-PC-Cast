@@ -6,7 +6,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$pythonCommand = (Get-Command $Python -CommandType Application).Source
+$pythonCommand = (Get-Command $Python -CommandType Application | Select-Object -First 1).Source
 $compilerPath = (Resolve-Path -LiteralPath $InnoCompiler).Path
 $repository = Split-Path $PSScriptRoot -Parent
 
