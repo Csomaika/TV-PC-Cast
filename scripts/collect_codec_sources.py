@@ -19,8 +19,7 @@ SCRIPTS = Path(__file__).resolve().parent
 REPOSITORY = SCRIPTS.parent
 PYAV_WHEEL = {
     "filename": "av-19.0.2-cp312-abi3-win_amd64.whl",
-    "url": ("https://files.pythonhosted.org/packages/32/5a/"
-            "743a83666ded197df8b9957e2800bef9a39d52b23be2ca211bbd14b5fb22/av-19.0.2-cp312-abi3-win_amd64.whl"),
+    "url": "https://github.com/PyAV-Org/PyAV/releases/download/v19.0.2/av-19.0.2-cp312-abi3-win_amd64.whl",
     "sha256": "3ce5a1d7b916d13c16ac58f1756f0fee4af2d53f02bc1403e18550b50d375a22",
 }
 PYTHON_PACKAGES = (
