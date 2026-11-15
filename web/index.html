@@ -4,140 +4,498 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>TV-PC Cast | Hisense TV</title>
+<title>TV-PC Cast</title>
 <style>
-* { box-sizing:border-box; }
-html,body { margin:0; width:100%; height:100%; background:#060a12; color:#ecf6ff; font:18px Arial,sans-serif; }
-button,input { font:inherit; }
-#pairing { max-width:650px; margin:8vh auto 0; padding:30px; text-align:center; }
-h1 { font-size:35px; margin:0 0 10px; color:#87ddff; }
-p { color:#b9cce3; line-height:1.5; }
-input { width:250px; max-width:95%; font-size:32px; text-align:center; letter-spacing:8px;
-  padding:13px; background:#19283d; color:white; border:2px solid #54738e; border-radius:10px; }
-button { padding:15px 22px; border:0; border-radius:10px; background:#80d4ff; color:#061421;
- font-weight:bold; cursor:pointer; margin:14px 5px; }
-button:focus,input:focus { outline:4px solid #fff; }
-#error { color:#ff9f9f; min-height:27px; }
-#viewer { display:none; position:absolute; left:0; top:0; width:100%; height:100%; background:#000; }
-#screen { width:100%; height:100%; display:block; object-fit:contain; background:#000; }
-#controls { position:absolute; bottom:0; left:0; right:0; text-align:center;
-  padding:12px; background:rgba(6,10,18,.80); }
-#controls span { color:#e4f2ff; padding:6px; }
-#controls button { margin:4px; padding:10px 15px; font-size:15px; }
-#hint { font-size:15px; }
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; background: #060a12; color: #ecf6ff; font: 18px Arial, sans-serif; }
+[hidden] { display: none !important; }
+button, input { font: inherit; }
+button:focus, input:focus { outline: 3px solid #fff; outline-offset: 3px; }
+button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #80d4ff;
+  border-radius: 6px;
+  background: #80d4ff;
+  color: #061421;
+  font-weight: bold;
+  cursor: pointer;
+}
+button:disabled { opacity: .65; cursor: default; }
+button[aria-pressed="true"] { background: #19283d; color: #ecf6ff; }
+#pairing { max-width: 580px; margin: 0 auto; padding: 8vh 24px 24px; }
+h1 { margin: 0 0 16px; color: #87ddff; font-size: 36px; }
+p { line-height: 1.5; }
+#pin-help { color: #b9cce3; }
+label { display: block; margin-bottom: 8px; font-weight: bold; }
+input {
+  width: 230px;
+  max-width: 100%;
+  padding: 10px;
+  border: 2px solid #80d4ff;
+  border-radius: 6px;
+  background: #19283d;
+  color: #fff;
+  font-size: 28px;
+  text-align: center;
+  letter-spacing: .3em;
+}
+#connect { display: block; margin-top: 16px; }
+#error { margin-top: 16px; color: #ffb7b7; }
+#viewer, #picture { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: #000; }
+#viewer:fullscreen { width: 100%; height: 100%; }
+.frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: 100%;
+  max-height: 100%;
+  -webkit-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+}
+@supports (object-fit: contain) {
+  .frame { width: 100%; height: 100%; object-fit: contain; }
+}
+#viewer-ui { position: absolute; top: 4%; left: 4%; right: 4%; text-align: right; }
+#controls {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid #54738e;
+  border-radius: 8px;
+  background: #101826;
+  text-align: left;
+}
+#controls p { margin: 0; }
+#controls button { margin: 8px 8px 0 0; }
 </style>
 </head>
 <body>
-<div id="pairing">
-  <h1>▣ TV-PC Cast</h1>
-  <p>Hisense TV képernyőtükrözés</p>
-  <p>Írd be a Windows alkalmazásban látható 6 jegyű PIN-kódot.</p>
-  <form id="pair-form">
-    <input id="pin" type="tel" pattern="[0-9]{6}" maxlength="6"
-           inputmode="numeric" autocomplete="off" placeholder="000000" autofocus>
-    <div><button id="connect" type="submit">Csatlakozás →</button></div>
+<main id="pairing">
+  <h1>TV-PC Cast</h1>
+  <p id="pin-help">Írd be a Windows alkalmazásban megjelenő hatjegyű PIN-kódot.</p>
+  <form id="pair-form" novalidate>
+    <label for="pin">PIN-kód</label>
+    <input id="pin" type="tel" maxlength="6" inputmode="numeric" autocomplete="off" aria-describedby="pin-help error">
+    <button id="connect" type="submit">Csatlakozás</button>
   </form>
-  <p id="error"></p>
-  <p id="hint">A PC és a televízió ugyanahhoz a Wi-Fi/LAN hálózathoz csatlakozzon.</p>
-</div>
-<div id="viewer">
-  <img id="screen" alt="A Windows PC élő képe">
-  <div id="controls">
-    <span id="mode">Csatlakozás...</span>
-    <button type="button" id="compat">Kompatibilitási mód</button>
-    <button type="button" id="fullscreen">Teljes képernyő</button>
+  <p id="error" role="status"></p>
+</main>
+<div id="viewer" hidden>
+  <video id="rtc-video" class="frame" autoplay muted playsinline aria-label="A Windows PC élő közvetítése" hidden></video>
+  <div id="picture"></div>
+  <div id="viewer-ui">
+    <button type="button" id="show-controls" aria-controls="controls" aria-expanded="true">Vezérlők elrejtése</button>
+    <div id="controls">
+      <p id="mode" role="status"></p>
+      <p id="rtc-notice" role="status"></p>
+      <button type="button" id="rtc" aria-pressed="false">Kép és hang (WebRTC)</button>
+      <button type="button" id="rtc-audio" hidden>Hang bekapcsolása</button>
+      <button type="button" id="compat" aria-pressed="false">JPEG mód</button>
+      <button type="button" id="fullscreen">Teljes képernyő</button>
+      <button type="button" id="disconnect">Bontás</button>
+    </div>
   </div>
 </div>
 <script>
 (function () {
   "use strict";
-  var token = "";
-  var mode = "";
-  var counter = 0;
-  var screen = document.getElementById("screen");
-  var message = document.getElementById("error");
-  var status = document.getElementById("mode");
   var pairing = document.getElementById("pairing");
   var viewer = document.getElementById("viewer");
+  var picture = document.getElementById("picture");
+  var pin = document.getElementById("pin");
+  var connect = document.getElementById("connect");
+  var message = document.getElementById("error");
+  var status = document.getElementById("mode");
+  var controls = document.getElementById("controls");
+  var controlsButton = document.getElementById("show-controls");
+  var jpegButton = document.getElementById("compat");
+  var rtcButton = document.getElementById("rtc");
+  var audioButton = document.getElementById("rtc-audio");
+  var video = document.getElementById("rtc-video");
+  var rtcNotice = document.getElementById("rtc-notice");
+  var fullscreenButton = document.getElementById("fullscreen");
+  var token = "";
+  var format = "";
+  var counter = 0;
+  var timer;
+  var pending;
+  var shown;
+  var pairRequest;
+  var rtc;
 
-  function beginPolling() {
-    if (mode === "poll") return;
-    mode = "poll";
-    status.innerHTML = "JPEG kompatibilitási mód";
-    screen.onload = function () {
-      if (mode === "poll") window.setTimeout(nextImage, 100);
-    };
-    screen.onerror = function () {
-      if (mode === "poll") window.setTimeout(nextImage, 800);
-    };
-    nextImage();
+  function showControls(visible) {
+    controls.hidden = !visible;
+    controlsButton.setAttribute("aria-expanded", visible ? "true" : "false");
+    controlsButton.textContent = visible ? "Vezérlők elrejtése" : "Vezérlők megjelenítése";
   }
 
-  function nextImage() {
-    if (mode !== "poll") return;
-    screen.src = "/frame?token=" + encodeURIComponent(token) + "&n=" + (++counter);
+  function updateStatus(text) {
+    if (status.textContent !== text) status.textContent = text;
+  }
+
+  function frameImage() {
+    var image = new Image();
+    image.className = "frame";
+    image.alt = "A Windows PC képernyője";
+    return image;
+  }
+
+  function cancelImage(image) {
+    image.onload = null;
+    image.onerror = null;
+    image.removeAttribute("src");
+  }
+
+  function clearPictures() {
+    window.clearTimeout(timer);
+    if (pending) {
+      cancelImage(pending);
+      pending = null;
+    }
+    if (shown) {
+      cancelImage(shown);
+      picture.removeChild(shown);
+      shown = null;
+    }
+  }
+
+  function showImage(image) {
+    if (shown) {
+      cancelImage(shown);
+      picture.replaceChild(image, shown);
+    } else {
+      picture.appendChild(image);
+    }
+    shown = image;
+  }
+
+  function nextJpeg() {
+    if (format !== "jpeg") return;
+    var image = frameImage();
+    pending = image;
+    function finish(loaded) {
+      if (pending !== image) return;
+      pending = null;
+      window.clearTimeout(timer);
+      image.onload = null;
+      image.onerror = null;
+      if (loaded) {
+        showImage(image);
+        updateStatus("Élő kép · JPEG mód · Hang nélkül");
+      } else {
+        cancelImage(image);
+        updateStatus("A kép nem elérhető. Ellenőrizd a PC-t vagy párosíts újra.");
+        showControls(true);
+      }
+      timer = window.setTimeout(nextJpeg, loaded ? 33 : 1500);
+    }
+    image.onload = function () { finish(true); };
+    image.onerror = function () { finish(false); };
+    timer = window.setTimeout(function () { finish(false); }, 5000);
+    image.src = "/frame?token=" + encodeURIComponent(token) + "&n=" + (++counter);
+  }
+
+  function startJpeg() {
+    if (format === "jpeg") return;
+    clearPictures();
+    format = "jpeg";
+    jpegButton.setAttribute("aria-pressed", "true");
+    updateStatus("Várakozás a JPEG képre…");
+    nextJpeg();
+  }
+
+  function startMjpeg() {
+    clearPictures();
+    format = "mjpeg";
+    jpegButton.setAttribute("aria-pressed", "false");
+    updateStatus("Kapcsolódás a PC-hez…");
+    var image = frameImage();
+    function received() {
+      if (shown !== image) return;
+      window.clearTimeout(timer);
+      updateStatus("Élő kép · MJPEG · Hang nélkül");
+    }
+    image.onload = received;
+    image.onerror = function () {
+      if (shown === image) startJpeg();
+    };
+    showImage(image);
+    timer = window.setTimeout(function () {
+      if (image.naturalWidth > 0) received();
+      else startJpeg();
+    }, 4000);
+    image.src = "/stream?token=" + encodeURIComponent(token);
+  }
+
+  function closeRtc() {
+    if (!rtc) return;
+    var session = rtc;
+    rtc = null;
+    window.clearTimeout(session.deadline);
+    window.clearTimeout(session.reconnect);
+    if (session.request) session.request.abort();
+    session.peer.ontrack = null;
+    session.peer.oniceconnectionstatechange = null;
+    session.peer.onicegatheringstatechange = null;
+    session.peer.close();
+    video.onplaying = null;
+    video.onerror = null;
+    video.pause();
+    video.srcObject = null;
+    video.hidden = true;
+    picture.hidden = false;
+    audioButton.hidden = true;
+    rtcButton.setAttribute("aria-pressed", "false");
+    rtcButton.textContent = "Kép és hang (WebRTC)";
+    rtcNotice.textContent = "";
+  }
+
+  function rtcFailed(session, message) {
+    if (rtc !== session) return;
+    closeRtc();
+    if (format === "rtc") startMjpeg();
+    rtcNotice.textContent = message + " A csak kép mód folytatódik.";
+    showControls(true);
+  }
+
+  function updateRtcPlayback(session) {
+    if (rtc !== session) return;
+    var hasAudio = session.audioAvailable && session.stream.getAudioTracks().length > 0;
+    audioButton.hidden = !video.srcObject || (!hasAudio && !video.paused);
+    audioButton.textContent = hasAudio ?
+      (video.muted ? "Hang bekapcsolása" : "Némítás") : "Lejátszás";
+    if (video.paused || !video.videoWidth) return;
+    if (format !== "rtc") {
+      clearPictures();
+      format = "rtc";
+      jpegButton.setAttribute("aria-pressed", "false");
+      picture.hidden = true;
+      window.clearTimeout(session.deadline);
+      rtcNotice.textContent = "";
+    }
+    updateStatus("Élő kép · WebRTC · " +
+      (hasAudio ? (video.muted ? "Hang némítva" : "Hang bekapcsolva") :
+        (session.audioAvailable ? "Hang nélkül" : "A PC hangja nem elérhető")));
+  }
+
+  function playRtc(session, userAction) {
+    var result = video.play();
+    if (result && result.then) result.then(function () {
+      updateRtcPlayback(session);
+    }, function () {
+      if (rtc !== session) return;
+      video.muted = true;
+      audioButton.hidden = false;
+      audioButton.textContent = "Lejátszás és hang bekapcsolása";
+      rtcNotice.textContent = userAction ? "A böngésző nem indította el a lejátszást." :
+        "A lejátszáshoz válaszd a gombot a TV távirányítójával.";
+    });
+  }
+
+  function postRtcOffer(session) {
+    var peer = session.peer;
+    if (rtc !== session || !session.localReady || session.sent ||
+        peer.iceGatheringState !== "complete") return;
+    session.sent = true;
+    var request = new XMLHttpRequest();
+    session.request = request;
+    request.open("POST", "/api/rtc/offer", true);
+    request.setRequestHeader("Content-Type", "application/json");
+    request.onreadystatechange = function () {
+      if (request.readyState !== 4 || rtc !== session) return;
+      session.request = null;
+      var answer = null;
+      try { answer = JSON.parse(request.responseText); } catch (ignore) {}
+      if (request.status !== 200 || !answer || answer.type !== "answer" ||
+          typeof answer.sdp !== "string" || !answer.sdp) {
+        rtcFailed(session, (answer && answer.error) || "A PC nem tudta elindítani a WebRTC-közvetítést.");
+        return;
+      }
+      session.audioAvailable = answer.audio_available !== false;
+      peer.setRemoteDescription({ type: answer.type, sdp: answer.sdp }).then(null, function () {
+        rtcFailed(session, "A böngésző nem tudta fogadni a WebRTC-választ.");
+      });
+    };
+    request.send(JSON.stringify({ token: token, type: "offer", sdp: peer.localDescription.sdp }));
+  }
+
+  function startRtc() {
+    var Peer = window.RTCPeerConnection;
+    if (!Peer || !Peer.prototype.addTransceiver || !window.MediaStream || !("srcObject" in video)) {
+      rtcNotice.textContent = "A TV böngészője nem támogatja ezt a WebRTC-lejátszást. A csak kép mód folytatódik.";
+      return;
+    }
+    try {
+      var peer = new Peer({ iceServers: [], bundlePolicy: "max-bundle" });
+      var session = { peer: peer, stream: new window.MediaStream(), audioAvailable: true };
+      rtc = session;
+      rtcButton.setAttribute("aria-pressed", "true");
+      rtcButton.textContent = "Vissza a csak kép módhoz";
+      video.hidden = false;
+      video.muted = true;
+      rtcNotice.textContent = "A kép és a hang csatlakozik…";
+      session.deadline = window.setTimeout(function () {
+        rtcFailed(session, "A WebRTC-kapcsolat nem indult el időben.");
+      }, 25000);
+      video.onplaying = function () { updateRtcPlayback(session); };
+      video.onerror = function () { rtcFailed(session, "A WebRTC-kép nem játszható le."); };
+      peer.ontrack = function (event) {
+        if (rtc !== session) return;
+        session.stream.addTrack(event.track);
+        if (!video.srcObject) {
+          video.srcObject = session.stream;
+          playRtc(session, false);
+        }
+        updateRtcPlayback(session);
+      };
+      peer.onicegatheringstatechange = function () { postRtcOffer(session); };
+      peer.oniceconnectionstatechange = function () {
+        if (rtc !== session) return;
+        window.clearTimeout(session.reconnect);
+        if (peer.iceConnectionState === "failed" || peer.iceConnectionState === "closed") {
+          rtcFailed(session, "Megszakadt a WebRTC-kapcsolat.");
+        } else if (peer.iceConnectionState === "disconnected") {
+          session.reconnect = window.setTimeout(function () {
+            rtcFailed(session, "Megszakadt a WebRTC-kapcsolat.");
+          }, 3500);
+        }
+      };
+      peer.addTransceiver("video", { direction: "recvonly" });
+      peer.addTransceiver("audio", { direction: "recvonly" });
+      peer.createOffer().then(function (offer) {
+        if (rtc === session) return peer.setLocalDescription(offer);
+      }).then(function () {
+        session.localReady = true;
+        postRtcOffer(session);
+      }).then(null, function () {
+        rtcFailed(session, "A böngésző nem tudta előkészíteni a WebRTC-kapcsolatot.");
+      });
+    } catch (error) {
+      if (rtc) rtcFailed(rtc, "A böngésző nem tudta előkészíteni a WebRTC-kapcsolatot.");
+      else rtcNotice.textContent = "A böngésző nem tudta előkészíteni a WebRTC-kapcsolatot.";
+    }
   }
 
   function view() {
-    pairing.style.display = "none";
-    viewer.style.display = "block";
-    mode = "mjpeg";
-    status.innerHTML = "Élő közvetítés";
-    screen.onload = function () {
-      status.innerHTML = "Élő közvetítés";
-    };
-    screen.onerror = function () { beginPolling(); };
-    screen.src = "/stream?token=" + encodeURIComponent(token);
-    // Some VIDAA browsers cannot decode multipart JPEG. Fall back automatically.
-    window.setTimeout(function () {
-      if (mode === "mjpeg" && !screen.complete && screen.naturalWidth === 0) {
-        beginPolling();
-      }
-    }, 3500);
+    pairing.hidden = true;
+    viewer.hidden = false;
+    showControls(true);
+    controlsButton.focus();
+    startMjpeg();
   }
 
   document.getElementById("pair-form").onsubmit = function (event) {
     if (event && event.preventDefault) event.preventDefault();
-    var pin = document.getElementById("pin").value;
-    if (!/^[0-9]{6}$/.test(pin)) {
-      message.innerHTML = "Pontosan 6 számjegy szükséges.";
+    if (pairRequest) return false;
+    if (!/^[0-9]{6}$/.test(pin.value)) {
+      message.textContent = "Írj be pontosan hat számjegyet.";
+      pin.focus();
       return false;
     }
-    message.innerHTML = "Kapcsolódás...";
+    message.textContent = "Kapcsolódás…";
+    connect.disabled = true;
     var request = new XMLHttpRequest();
+    pairRequest = request;
+    function finish() {
+      if (pairRequest !== request) return false;
+      pairRequest = null;
+      window.clearTimeout(deadline);
+      connect.disabled = false;
+      return true;
+    }
+    var deadline = window.setTimeout(function () {
+      if (!finish()) return;
+      request.abort();
+      message.textContent = "A PC nem válaszol. Ellenőrizd a közvetítést és a hálózatot.";
+      connect.focus();
+    }, 6000);
     request.open("POST", "/api/pair", true);
     request.setRequestHeader("Content-Type", "application/json");
     request.onreadystatechange = function () {
-      if (request.readyState !== 4) return;
-      var data = {};
+      if (request.readyState !== 4 || !finish()) return;
+      var data = null;
       try { data = JSON.parse(request.responseText); } catch (ignore) {}
-      if (request.status === 200 && data.token) {
+      if (request.status === 200 && data && data.token) {
         token = data.token;
+        pin.value = "";
+        message.textContent = "";
         view();
       } else {
-        message.innerHTML = data.error || "Nem sikerült kapcsolódni a PC-hez.";
+        message.textContent = (data && data.error) || "Nem sikerült kapcsolódni a PC-hez.";
+        pin.focus();
       }
     };
-    request.onerror = function () { message.innerHTML = "Hálózati hiba."; };
-    request.send(JSON.stringify({ pin: pin }));
+    request.send(JSON.stringify({ pin: pin.value }));
     return false;
   };
 
-  document.getElementById("compat").onclick = beginPolling;
-  document.getElementById("fullscreen").onclick = function () {
-    var element = document.getElementById("viewer");
-    var enter = element.requestFullscreen || element.webkitRequestFullscreen;
-    if (enter) enter.call(element);
-    document.getElementById("controls").style.display = "none";
+  controlsButton.onclick = function () { showControls(controls.hidden); };
+  jpegButton.onclick = function () {
+    closeRtc();
+    rtcNotice.textContent = "";
+    if (format === "jpeg") startMjpeg();
+    else startJpeg();
   };
-  document.onkeydown = function (event) {
-    event = event || window.event;
-    var key = event.keyCode || event.which;
-    if (viewer.style.display === "block" && key === 13) {
-      document.getElementById("controls").style.display =
-        document.getElementById("controls").style.display === "none" ? "block" : "none";
+  rtcButton.onclick = function () {
+    if (!rtc) {
+      startRtc();
+    } else {
+      closeRtc();
+      if (format === "rtc") startMjpeg();
     }
   };
+  audioButton.onclick = function () {
+    if (!rtc) return;
+    if (rtc.audioAvailable && rtc.stream.getAudioTracks().length) {
+      video.muted = !video.muted && !video.paused;
+    }
+    playRtc(rtc, true);
+    rtcNotice.textContent = "";
+    updateRtcPlayback(rtc);
+  };
+
+  function fullscreenActive() {
+    return document.fullscreenElement || document.webkitFullscreenElement;
+  }
+
+  function leaveFullscreen() {
+    var exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
+    if (fullscreenActive() && exit) return exit.call(document);
+  }
+
+  fullscreenButton.onclick = function () {
+    var enter = viewer.requestFullscreen || viewer.webkitRequestFullscreen || viewer.webkitRequestFullScreen;
+    var result;
+    if (fullscreenActive()) result = leaveFullscreen();
+    else if (enter) result = enter.call(viewer);
+    else updateStatus("A teljes képernyő ebben a böngészőben nem érhető el.");
+    if (result && result.catch) {
+      result.catch(function () { updateStatus("A teljes képernyő nem kapcsolható."); });
+    }
+  };
+
+  function updateFullscreenButton() {
+    fullscreenButton.textContent = fullscreenActive() ? "Kilépés teljes képernyőről" : "Teljes képernyő";
+  }
+
+  document.addEventListener("fullscreenchange", updateFullscreenButton);
+  document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
+
+  document.getElementById("disconnect").onclick = function () {
+    var result = leaveFullscreen();
+    if (result && result.catch) result.catch(function () {});
+    closeRtc();
+    rtcNotice.textContent = "";
+    format = "";
+    token = "";
+    clearPictures();
+    viewer.hidden = true;
+    pairing.hidden = false;
+    message.textContent = "A TV levált a közvetítésről.";
+    pin.focus();
+  };
+
+  pin.focus();
 })();
 </script>
 </body>

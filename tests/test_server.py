@@ -1,10 +1,13 @@
 """Integration tests for PIN auth, HTTP frame delivery and lockout."""
 import http.client
+import io
 import json
+from types import SimpleNamespace
 
+from PIL import Image
 import pytest
 
-from tvpc_cast import CastService
+from tvpc_cast import CaptureWorker, CastService
 
 
 JPEG = b"\xff\xd8\xff\xd9"
@@ -96,3 +99,59 @@ def test_rate_limit_and_invalid_requests(service):
 
 def test_missing_route(service):
     assert request(service, "GET", "/not-here")[0] == 404
+
+
+def test_non_ascii_pin_returns_an_http_error(service):
+    assert request(service, "POST", "/api/pair", {"pin": "１２３４５６"})[0] == 403
+    assert request(service, "POST", "/api/pair", {"pin": service.pin})[0] == 200
+
+
+def test_webrtc_offer_requires_pin_and_valid_sdp(service, monkeypatch):
+    def answer(token, sdp, client_ip):
+        assert service.authorized(token)
+        assert sdp == "v=0\r\nexample"
+        assert client_ip == "127.0.0.1"
+        return {"type": "answer", "sdp": "v=0\r\nanswer", "audio_available": True}
+
+    monkeypatch.setattr(service, "rtc_answer", answer)
+    route = "/api/rtc/offer"
+    offer = {"type": "offer", "sdp": "v=0\r\nexample"}
+    assert request(service, "POST", route, offer)[0] == 401
+    _, _, pairing = request(service, "POST", "/api/pair", {"pin": service.pin})
+    offer["token"] = json.loads(pairing)["token"]
+    assert request(service, "POST", route, {**offer, "sdp": "bad"})[0] == 400
+    status, _, response = request(service, "POST", route, offer)
+    assert status == 200
+    assert json.loads(response)["audio_available"] is True
+
+
+def test_capture_all_monitors_preserves_aspect_ratio_and_limits_height(monkeypatch):
+    desktop = {"width": 300, "height": 600, "left": -100, "top": 0}
+    primary = {"width": 200, "height": 600, "left": 0, "top": 0}
+
+    class FakeScreen:
+        monitors = [desktop, primary]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            pass
+
+        def grab(self, bounds):
+            assert bounds == desktop
+            size = bounds["width"], bounds["height"]
+            return SimpleNamespace(size=size, bgra=bytes(size[0] * size[1] * 4))
+
+    monkeypatch.setattr("mss.mss", FakeScreen)
+    worker = CaptureWorker(monitor=0, max_width=100, max_height=150)
+    worker.start()
+    try:
+        _, data = worker.frame_after(-1)
+        assert data is not None, worker.error
+        with Image.open(io.BytesIO(data)) as image:
+            assert image.size == (75, 150)
+        _, snapshot = worker.snapshot_after(-1)
+        assert snapshot.size == (75, 150)
+    finally:
+        worker.stop()
